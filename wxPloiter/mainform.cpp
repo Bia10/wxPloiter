@@ -53,7 +53,7 @@ namespace wxPloiter
 	const std::string app::logfile = "wxPloiter.log";
 	const std::string app::tag = "wxPloiter::app";
 	const wxString app::appname = "wxPloiter";
-	const wxString app::appver = "r5-bypassless";
+	const wxString app::appver = "r6-bypassless";
 
 	void app::rundll(HINSTANCE hInstance)
 	{
@@ -126,7 +126,8 @@ namespace wxPloiter
 		if (!packethooks::get()->isinitialized())
 			wxLogWarning("Could not hook some or all of the packet functions. Logging / sending might not work.");
 		
-		if (!packethooks::get()->isusingwsock()) {
+		if (!packethooks::get()->isusingwsock()) 
+		{
 			packethooks::get()->hooksend(true);
 			packethooks::get()->hookrecv(true);
 		}
@@ -186,10 +187,7 @@ namespace wxPloiter
 
 		// append given columns
 		for (size_t i = 0; i < columns; i++)
-		{
 			it[i] = va_arg(va, wxString);
-			//utils::logging::get()->i("itemlist", strfmt() << "it[" << i << "] = " << it[i]);
-		}
 
 		// missing columns will remain empty
 
@@ -221,7 +219,6 @@ namespace wxPloiter
 
 	wxString itemlist::OnGetItemText(long item, long column) const
 	{
-		//utils::logging::get()->i("itemlist", strfmt() << "getting items[" << item << "][" << column << "]");
 		return items[item][column];
 	}
 
@@ -377,8 +374,6 @@ namespace wxPloiter
 		ascroll = menu->AppendCheckItem(wxID_LOGGING_AUTOSCROLL, "Autoscroll");
 		ascroll->Check(true);
 		menu->Append(wxID_LOGGING_CLEAR, "Clear");
-		//menu->AppendCheckItem(wxID_LOGGING_HOOKSEND, "Hook send");
-		//menu->AppendCheckItem(wxID_LOGGING_HOOKRECV, "Hook recv");
 		wxMenuItem *logitem = menu->AppendCheckItem(wxID_LOGGING_SEND, "Log send");
 		logitem->Check();
 		logitem = menu->AppendCheckItem(wxID_LOGGING_RECV, "Log recv");
@@ -399,7 +394,6 @@ namespace wxPloiter
 		menu->Append(wxID_PACKET_HEADERLIST, "Header list");
 		menu->Append(wxID_PACKET_IGNORE, "Ignore header");
 		menu->Append(wxID_PACKET_BLOCK, "Block header");
-		//menu->AppendCheckItem(wxID_PACKET_ENABLESENDBLOCK, "Send blocking hook (requires bypass)");
 		mbar->Append(menu, "Packet"); // add menu to the menu bar
 		packetmenu = menu;
 
@@ -408,7 +402,6 @@ namespace wxPloiter
 		menu_bind(&mainform::OnPacketHeaderListClicked, wxID_PACKET_HEADERLIST);
 		menu_bind(&mainform::OnPacketIgnoreClicked, wxID_PACKET_IGNORE);
 		menu_bind(&mainform::OnPacketBlockClicked, wxID_PACKET_BLOCK);
-		//menu_bind(&mainform::OnPacketEnableSendBlockClicked, wxID_PACKET_ENABLESENDBLOCK);
 
 		// settings menu
 		menu = new wxMenu;
@@ -543,12 +536,14 @@ namespace wxPloiter
 
 			cfg->open(file);
 
+			// general settings
 			ascroll->Check(cfg->get("general.autoscroll", true));
 			packets->setautoscroll(ascroll->IsChecked());
 
 			copythosepackets->Check(cfg->get("general.copypackets", true));
 			copypackets = copythosepackets->IsChecked();
 
+			// multiline settings
 			int linecount = cfg->get<int>("multiline.lines", 0);
 
 			packettext->Clear();
@@ -566,44 +561,55 @@ namespace wxPloiter
 			spamdelay->SetValue(cfg->get<std::string>("multiline.spamdelay", "20"));
 			linedelay->SetValue(cfg->get<std::string>("multiline.linedelay", "20"));
 
-			/*
-			TODO: fix this crap crashing
+			// headers
+			safeheaderlist::ptr list;
+			size_t headercount;
 
-			size_t headercount = cfg->get<size_t>("headers.count", 0);
-
+			list = safeheaderlist::getblockedrecv();
+			headercount = cfg->get<size_t>("blockrecv.count", 0);
+			list->clear();
 			for (size_t i = 0; i < headercount; i++)
 			{
-				std::ostringstream base;
-				std::ostringstream hdr;
-				std::ostringstream dir;
-				std::ostringstream act;
-
-				base << "headers.header" << i;
-				hdr << base.str() << ".header";
-				dir << base.str() << ".isrecv";
-				act << base.str() << ".isignore";
-
-				try
-				{
-					word header = cfg->get<word>(hdr.str().c_str());
-					bool isrecvheader = cfg->get<bool>(dir.str().c_str());
-					bool isignore = cfg->get<bool>(act.str().c_str());
-
-					safeheaderlist::ptr list;
-
-					if (isrecvheader)
-						list = isignore ? safeheaderlist::getignoredrecv() : safeheaderlist::getblockedrecv();
-					else
-						list = isignore ? safeheaderlist::getignoredsend() : safeheaderlist::getblockedsend();
-
-					list->push_back(header);
-				}
-				catch (const boost::property_tree::ptree_error &)
-				{
-					continue;
-				}
+				std::ostringstream name;
+				name << "blockrecv.header" << i;
+				word header = cfg->get<word>(name.str().c_str());
+				list->push_back(header);
 			}
-			*/
+
+			list = safeheaderlist::getblockedsend();
+			headercount = cfg->get<size_t>("blocksend.count", 0);
+			list->clear();
+			for (size_t i = 0; i < headercount; i++)
+			{
+				std::ostringstream name;
+				name << "blocksend.header" << i;
+				word header = cfg->get<word>(name.str().c_str());
+				list->push_back(header);
+			}
+
+			list = safeheaderlist::getignoredrecv();
+			headercount = cfg->get<size_t>("ignorerecv.count", 0);
+			list->clear();
+			for (size_t i = 0; i < headercount; i++)
+			{
+				std::ostringstream name;
+				name << "ignorerecv.header" << i;
+				word header = cfg->get<word>(name.str().c_str());
+				list->push_back(header);
+			}
+
+			list = safeheaderlist::getignoredsend();
+			headercount = cfg->get<size_t>("ignoresend.count", 0);
+			list->clear();
+			for (size_t i = 0; i < headercount; i++)
+			{
+				std::ostringstream name;
+				name << "ignoresend.header" << i;
+				word header = cfg->get<word>(name.str().c_str());
+				list->push_back(header);
+			}
+
+			hdlg->refresh();
 		}
 		catch (const boost::property_tree::ptree_error &e)
 		{
@@ -620,8 +626,12 @@ namespace wxPloiter
 			configmanager::ptr cfg = configmanager::get();
 
 			cfg->clear();
+
+			// general settings
 			cfg->set("general.autoscroll", ascroll->IsChecked());
 			cfg->set("general.copypackets", copythosepackets->IsChecked());
+
+			// multiline settings
 			cfg->set("multiline.lines", packettext->GetNumberOfLines());
 
 			for (int i = 0; i < packettext->GetNumberOfLines(); i++)
@@ -635,88 +645,49 @@ namespace wxPloiter
 			cfg->set("multiline.spamdelay", spamdelay->GetValue().ToStdString());
 			cfg->set("multiline.linedelay", linedelay->GetValue().ToStdString());
 
-			/*
-			TODO: figure out why this crashes
-			size_t sz1 = safeheaderlist::getblockedrecv()->size();
-			size_t sz2 = safeheaderlist::getblockedsend()->size();
-			size_t sz3 = safeheaderlist::getignoredrecv()->size();
-			size_t sz4 = safeheaderlist::getignoredsend()->size();
-			size_t headercount = sz1 + sz2 + sz3 + sz4;
-			cfg->set("headers.count", headercount);
+			// headers
+			safeheaderlist::ptr list;
+			size_t headercount;
 
+			list = safeheaderlist::getblockedrecv();
+			headercount = list->size();
+			cfg->set("blockrecv.count", headercount);
 			for (size_t i = 0; i < headercount; i++)
 			{
-				safeheaderlist::ptr list;
-				size_t reali = i;
-				size_t s1 = safeheaderlist::getblockedrecv()->size();
-				log->d(tag, strfmt() << "s1 = " << s1);
-				size_t s2 = s1 + safeheaderlist::getblockedsend()->size();
-				log->d(tag, strfmt() << "s2 = " << s2);
-				size_t s3 = s2 + safeheaderlist::getignoredrecv()->size();
-				log->d(tag, strfmt() << "s3 = " << s3);
-				size_t s4 = s3 + safeheaderlist::getignoredsend()->size();
-				log->d(tag, strfmt() << "s4 = " << s4);
-
-				std::ostringstream base;
-				std::ostringstream hdr;
-				std::ostringstream dir;
-				std::ostringstream act;
-
-				base << "headers.header" << i;
-				log->d(tag, strfmt() << "base = " << base.str());
-				hdr << base.str() << ".header";
-				log->d(tag, strfmt() << "hdr = " << hdr.str());
-				dir << base.str() << ".isrecv";
-				log->d(tag, strfmt() << "dir = " << dir.str());
-				act << base.str() << ".isignore";
-				log->d(tag, strfmt() << "act = " << act.str());
-
-				if (i < s1)
-				{
-					list = safeheaderlist::getblockedrecv();
-					log->i(tag, strfmt() << "savecfg: " << hdr.str() << "=0x" << 
-						std::hex << std::uppercase << std::setw(2) << std::setfill('0') << list->at(reali));
-					cfg->set<word>(hdr.str().c_str(), list->at(reali));
-					cfg->set(dir.str().c_str(), true);
-					cfg->set(act.str().c_str(), false);
-				}
-
-				else if (i < s2)
-				{
-					reali -= s1;
-					list = safeheaderlist::getblockedrecv();
-					log->i(tag, strfmt() << "savecfg: " << hdr.str() << "=0x" << 
-						std::hex << std::uppercase << std::setw(2) << std::setfill('0') << list->at(reali));
-					cfg->set<word>(hdr.str().c_str(), list->at(reali));
-					cfg->set(dir.str().c_str(), false);
-					cfg->set(act.str().c_str(), false);
-				}
-
-				else if (i < s3)
-				{
-					reali -= s2;
-					list = safeheaderlist::getblockedrecv();
-					log->i(tag, strfmt() << "savecfg: " << hdr.str() << "=0x" << 
-						std::hex << std::uppercase << std::setw(2) << std::setfill('0') << list->at(reali));
-					cfg->set<word>(hdr.str().c_str(), list->at(reali));
-					cfg->set(dir.str().c_str(), true);
-					cfg->set(act.str().c_str(), true);
-				}
-
-				else if (i < s4)
-				{
-					reali -= s3;
-					list = safeheaderlist::getblockedrecv();
-					log->i(tag, strfmt() << "savecfg: " << hdr.str() << "=0x" << 
-						std::hex << std::uppercase << std::setw(2) << std::setfill('0') << list->at(reali));
-					cfg->set<word>(hdr.str().c_str(), list->at(reali));
-					cfg->set(dir.str().c_str(), false);
-					cfg->set(act.str().c_str(), true);
-				}
-				else
-					assert(false); // should never happen
+				std::ostringstream name;
+				name << "blockrecv.header" << i;
+				cfg->set<word>(name.str().c_str(), list->at(i));
 			}
-			*/
+
+			list = safeheaderlist::getblockedsend();
+			headercount = list->size();
+			cfg->set("blocksend.count", headercount);
+			for (size_t i = 0; i < headercount; i++)
+			{
+				std::ostringstream name;
+				name << "blocksend.header" << i;
+				cfg->set<word>(name.str().c_str(), list->at(i));
+			}
+
+			list = safeheaderlist::getignoredrecv();
+			headercount = list->size();
+			cfg->set("ignorerecv.count", headercount);
+			for (size_t i = 0; i < headercount; i++)
+			{
+				std::ostringstream name;
+				name << "ignorerecv.header" << i;
+				cfg->set<word>(name.str().c_str(), list->at(i));
+			}
+
+			list = safeheaderlist::getignoredsend();
+			headercount = list->size();
+			cfg->set("ignoresend.count", headercount);
+			for (size_t i = 0; i < headercount; i++)
+			{
+				std::ostringstream name;
+				name << "ignoresend.header" << i;
+				cfg->set<word>(name.str().c_str(), list->at(i));
+			}
 
 			cfg->save(file);
 		}
@@ -730,13 +701,6 @@ namespace wxPloiter
 	{
 		//savecfg("wxPloiter.ini");
 	}
-
-	/*
-	void mainform::enablesendblockingtoggle(bool enabled)
-	{
-		loggingmenu->Enable(wxID_PACKET_ENABLESENDBLOCK, enabled);
-	}
-	*/
 
 	void mainform::enablechoice(const wxString &choice, bool enabled)
 	{
@@ -796,8 +760,6 @@ namespace wxPloiter
 
 	void mainform::OnPacketLogged(wxPacketEvent &e)
 	{
-		//log->i(tag, "processing packet event");
-
 		const char *direction = NULL;
 		word header = 0;
 		boost::shared_ptr<maple::packet> p = e.GetPacket();
@@ -1173,13 +1135,6 @@ namespace wxPloiter
 		copypackets = e.IsChecked();
 	}
 
-	/*
-	void mainform::OnPacketEnableSendBlockClicked(wxCommandEvent &e)
-	{
-		packethooks::get()->enablesendblock(e.IsChecked());
-	}
-	*/
-
 	void mainform::OnHelpAboutClicked(wxCommandEvent &e)
 	{
 		wxString ver = wxString::Format("%s %s", app::appname, app::appver);
@@ -1188,7 +1143,7 @@ namespace wxPloiter
 			wxString::Format("%s\n\n"
 				"coded by Francesco \"Franc[e]sco\" Noferi\n"
 				"http://hnng.moe/\n"
-				"francesco1149@gmail.com", ver),
+				"lolisamurai@tfwno.gf", ver),
 			ver, wxICON_INFORMATION | wxOK, this
 		);
 	}
