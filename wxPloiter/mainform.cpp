@@ -53,7 +53,7 @@ namespace wxPloiter
 	const std::string app::logfile = "wxPloiter.log";
 	const std::string app::tag = "wxPloiter::app";
 	const wxString app::appname = "wxPloiter";
-	const wxString app::appver = "r6-bypassless";
+	const wxString app::appver = "r7-bypassless";
 
 	void app::rundll(HINSTANCE hInstance)
 	{
@@ -445,7 +445,7 @@ namespace wxPloiter
 			// FUCK I spent like 2 hours trying to figure out what was wrong with the packet sender to discover 
 			// that the text wrapping was causing the wrapped newlines to be treated as multiline packets
 			packettext = new wxTextCtrl(box, wxID_ANY, wxEmptyString, 
-				wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_DONTWRAP);
+				wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_DONTWRAP | wxTE_RICH);
 			packettext->SetFont(packets->GetFont());
 
 			// horizontal sizer for the two buttons
